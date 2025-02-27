@@ -127,6 +127,11 @@ def process_file(audio_file, label_path, max_len, device):
 
 
 
+import os
+import torch
+import torch.nn.functional as F
+import numpy as np
+
 def load_dataset(audio_train_dir, audio_test_dir, train_label_dir, test_label_dir, max_len=300, device=None, limit_files=False):
     # 获取所有训练和测试集音频文件列表
     train_files = [f for f in os.listdir(audio_train_dir) if f.endswith('.wav')]
@@ -143,23 +148,30 @@ def load_dataset(audio_train_dir, audio_test_dir, train_label_dir, test_label_di
         train_labels = train_labels[:10]  # 只取前10个训练标签文件
         test_labels = test_labels[:10]  # 只取前10个测试标签文件
 
-    data = []
+    traindata = []
+    testdata = []
 
     # 处理训练集
     for audio_file, label_file in zip(train_files, train_labels):
-        data.extend(process_file(os.path.join(audio_train_dir, audio_file), os.path.join(train_label_dir, label_file), max_len, device))
+        traindata.extend(process_file(os.path.join(audio_train_dir, audio_file), os.path.join(train_label_dir, label_file), max_len, device))
 
     # 处理测试集
     for audio_file, label_file in zip(test_files, test_labels):
-        data.extend(process_file(os.path.join(audio_test_dir, audio_file), os.path.join(test_label_dir, label_file), max_len, device))
+        testdata.extend(process_file(os.path.join(audio_test_dir, audio_file), os.path.join(test_label_dir, label_file), max_len, device))
 
-    # 将标签映射到整数
-    labels = sorted(set(label for _, label in data))
-    label_map = {label: idx for idx, label in enumerate(labels)}
+    # 获取所有唯一标签
+    all_labels = sorted(set(label for _, label in traindata).union(set(label for _, label in testdata)))
+    
+    # 创建标签映射
+    label_map = {label: idx for idx, label in enumerate(all_labels)}
 
     # 将字符串标签转换为整数标签
-    data = [(features, label_map[label]) for features, label in data]
-    features, labels = zip(*data)
+    traindata = [(features, label_map[label]) for features, label in traindata]
+    testdata = [(features, label_map[label]) for features, label in testdata]
+
+    # 提取特征和标签
+    train_features, train_labels = zip(*traindata)
+    test_features, test_labels = zip(*testdata)
 
     # 确保所有特征的时间步数一致
     def adjust_length(feature, max_len):
@@ -171,15 +183,18 @@ def load_dataset(audio_train_dir, audio_test_dir, train_label_dir, test_label_di
         return feature
 
     # 对每个特征进行填充或裁剪，使它们的时间步数一致
-    features = [adjust_length(f, max_len) for f in features]
-    
-    # 转换为 NumPy 数组
-    features = np.array([f.cpu().numpy() for f in features])  # 转为 NumPy 数组
-    labels = np.array(labels)  # 确保 labels 是整数类型
+    train_features = [adjust_length(f, max_len) for f in train_features]
+    test_features = [adjust_length(f, max_len) for f in test_features]
 
-    # 切分数据：前 len(train_files) 个样本为训练集，剩下的为测试集
-    # 确保我们只取10个样本
-    return (features[:len(train_files)], labels[:len(train_files)]), (features[len(train_files):], labels[len(train_files):]), label_map
+    # 转换为 NumPy 数组
+    train_features = np.array([f.cpu().numpy() for f in train_features])  # 转为 NumPy 数组
+    test_features = np.array([f.cpu().numpy() for f in test_features])  # 转为 NumPy 数组
+    train_labels = np.array(train_labels)  # 确保 labels 是整数类型
+    test_labels = np.array(test_labels)  # 确保 labels 是整数类型
+
+    # 返回数据：训练集和测试集的特征与标签，及标签映射
+    return (train_features, train_labels), (test_features, test_labels), label_map
+
 
 
 

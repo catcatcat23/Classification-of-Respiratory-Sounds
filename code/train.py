@@ -21,7 +21,7 @@ def save_data(features, labels, features_file='features.npy', labels_file='label
 
 
 
-def load_or_process_data(audio_train_dir, audio_test_dir, train_label_dir, test_label_dir, max_len=300, device=None, limit_files=True):
+def load_or_process_data(audio_train_dir, audio_test_dir, train_label_dir, test_label_dir, max_len=300, device=None, limit_files=False):
     # 检查是否已保存预处理数据
     if os.path.exists('train_features.npy') and os.path.exists('train_labels.npy') and os.path.exists('test_features.npy') and os.path.exists('test_labels.npy'):
         print("加载预处理好的数据...")
@@ -41,7 +41,7 @@ def load_or_process_data(audio_train_dir, audio_test_dir, train_label_dir, test_
     return X_train, y_train, X_test, y_test, label_map
 
 
-def train_model(audio_train_dir, audio_test_dir, train_label_dir, test_label_dir, num_epochs=20, batch_size=4, learning_rate=0.0001, weight_decay=1e-4, model_path='crnn_model.pth'):
+def train_model(audio_train_dir, audio_test_dir, train_label_dir, test_label_dir, num_epochs=40, batch_size=4, learning_rate=0.0001, weight_decay=1e-4, model_path='crnn_model.pth'):
     # 训练模型的逻辑
     print(f"Using {audio_train_dir} for training and {audio_test_dir} for testing")
     print(f"Training labels from {train_label_dir} and testing labels from {test_label_dir}")
@@ -52,7 +52,7 @@ def train_model(audio_train_dir, audio_test_dir, train_label_dir, test_label_dir
     print(f"Using device: {device}")
 
     # 加载数据
-    X_train, y_train, X_test, y_test = load_or_process_data(audio_train_dir, audio_test_dir, train_label_dir, test_label_dir, max_len=300, device=device, limit_files=True)
+    X_train, y_train, X_test, y_test, label_map = load_or_process_data(audio_train_dir, audio_test_dir, train_label_dir, test_label_dir, max_len=300, device=device, limit_files=False)
 
 
     X_train = np.array(X_train)
